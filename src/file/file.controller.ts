@@ -7,14 +7,16 @@ import {
   BadRequestException,
   Get,
   Param,
-  Res,
+  UseGuards,
+  Redirect,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { FileService } from './file.service';
-import { Response } from 'express';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('file')
 export class FileController {
   constructor(private readonly fileService: FileService) {}
@@ -22,36 +24,22 @@ export class FileController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, callback) => {
-          // Create a unique filename
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          const filename = `${uniqueSuffix}${ext}`;
-          callback(null, filename);
-        },
-      }),
       fileFilter: (req, file, callback) => {
-        // Validate file types
         const allowedMimeTypes = [
+          'application/pdf',
           'image/jpeg',
           'image/png',
-          'application/pdf',
-          'text/plain',
+          'image/gif',
         ];
         if (!allowedMimeTypes.includes(file.mimetype)) {
           return callback(
-            new BadRequestException('File type not allowed'),
+            new BadRequestException('Files format are not allowed'),
             false,
           );
         }
         callback(null, true);
       },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     }),
   )
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
@@ -59,7 +47,11 @@ export class FileController {
       throw new BadRequestException('No file uploaded');
     }
 
-    return this.fileService.saveFile(file);
+    const { file: savedFile, imageUrl } = await this.fileService.saveFile(
+      file,
+      true,
+    ); // Save metadata if needed
+    return { file: savedFile, imageUrl };
   }
 
   // Multiple file upload
@@ -94,7 +86,13 @@ export class FileController {
 
   // Serve uploaded files
   @Get(':filename')
-  getFile(@Param('filename') filename: string, @Res() res: Response) {
-    return res.sendFile(filename, { root: './uploads' });
+  @Redirect()
+  async getFile(@Param('filename') filename: string) {
+    // Assuming filename is the Cloudinary public_id or URL stored in path
+    const file = this.fileService.getFileByName(filename);
+    if (!file) {
+      throw new BadRequestException('File not found');
+    }
+    return { url: file['path'] }; // Redirect to Cloudinary URL
   }
 }

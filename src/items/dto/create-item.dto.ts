@@ -1,4 +1,4 @@
-// items/dto/create-item.dto.ts
+// src/items/dto/create-item.dto.ts
 import {
   IsNotEmpty,
   IsNumber,
@@ -6,6 +6,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateItemDto {
   @IsNotEmpty()
@@ -18,6 +19,7 @@ export class CreateItemDto {
 
   @IsNumber()
   @Min(0)
+  @Type(() => Number) // Transform string to number
   quantity: number;
 
   @IsOptional()
@@ -35,6 +37,7 @@ export class CreateItemDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Type(() => Number) // Transform string to number
   minimumStockLevel?: number;
 
   @IsOptional()

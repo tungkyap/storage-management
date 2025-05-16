@@ -32,6 +32,15 @@ export class Item {
 
   @Prop()
   imageUrl: string;
+
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
+
+  @Prop() // New field for Cloudinary publicId
+  imagePublicId: string;
 }
 
 export const ItemSchema = SchemaFactory.createForClass(Item);
